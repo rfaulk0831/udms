@@ -1,0 +1,24 @@
+services:
+    transmission-openvpn:
+        cap_add:
+            - NET_ADMIN
+        volumes:
+            - /home/stelios/media/:/data
+            - /home/stelios/transmission/config/:/config
+        environment:
+            - OPENVPN_PROVIDER=NORDVPN
+            - OPENVPN_CONFIG=Greece
+            - OPENVPN_USERNAME=randomGeneratedStringFromNordAccount
+            - OPENVPN_PASSWORD=randomGeneratedStringFromNordAccount
+            - LOCAL_NETWORK=192.168.1.0/24
+            - NORDVPN_COUNTRY=GR
+            - NORDVPN_CATEGORY=legacy_p2p
+            - NORDVPN_PROTOCOL=tcp
+        logging:
+            driver: json-file
+            options:
+                max-size: 10m
+        ports:
+            - 9091:9091
+        image: haugene/transmission-openvpn
+        restart: unless-stopped
