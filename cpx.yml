@@ -17,3 +17,7 @@ services:
       environment:
         -  CPX_CORES=2
         -  EULA=yes
+      networks:
+        -  bridge
+        -  default
+        
