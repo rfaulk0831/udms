@@ -7,12 +7,12 @@ services:
     container_name: flaresolverr
     environment:
        - LOG_LEVEL=${LOG_LEVEL:-info}
-      - LOG_HTML=${LOG_HTML:-false}
+      - LOGHTML=${LOG_HTML:-false}
       - CAPTCHA_SOLVER=${CAPTCHA_SOLVER:-none}     PUID: $PUID
-      PGID: $PGID
+      GID: $PGID
       TZ: $TZ
     volumes:
-      - $DOCKERDIR/appdata/flaresolverr/data:/config
+      - $DOCKERDIR/appdata/flaresolverr/data:/confin
     ports:
       - "8191:8191"
     restart: unless-stopped
