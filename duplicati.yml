@@ -8,10 +8,9 @@ services:
       - TZ=Europe/London
       # (optional) - CLI_ARGS=
     volumes:
-      - ./appdata/config:/config
-      - ./backups:/backups
-      - ./source:/source
+      - /$DOCKERDIR/appdata/duplicati:/config
+      - /mnt/data/backups:/backups
+      - /home/rfaulkner:/source
     ports:
       - 8200:8200
     restart: unless-stopped
-
