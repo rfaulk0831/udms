@@ -20,30 +20,30 @@ include:
   # HOSTNAME=docker1 - defined in .env
 
   # CORE
-  - $DOCKERDIR/socket-proxy.yml
-  - $DOCKERDIR/portainer.yml
-  # - $DOCKERDIR/cpx.yml
-  - $DOCKERDIR/dozzle.yml
-  - $DOCKERDIR/homepage.yml
+  - /home/rfaulkner/docker/compose/$HOSTNAME/socket-proxy.yml
+  - /home/rfaulkner/docker/compose/$HOSTNAME/portainer.yml
+  # - /home/rfaulkner/docker/compose/$HOSTNAME/cpx.yml
+  - /home/rfaulkner/docker/compose/$HOSTNAME/dozzle.yml
+  - /home/rfaulkner/docker/compose/$HOSTNAME/homepage.yml
   # MEDIA
-  - $DOCKERDIR/plex.yml
+  - /home/rfaulkner/docker/compose/$HOSTNAME/plex.yml
   # DOWNLOADERS
-  - $DOCKERDIR/qbittorrent.yml
-  - $DOCKERDIR/transmission.yml
+  - /home/rfaulkner/docker/compose/$HOSTNAME/qbittorrent.yml
+  - /home/rfaulkner/docker/compose/$HOSTNAME/transmission.yml
   # INDEXERS
-  - $DOCKERDIR/prowlarr.yml
-  - $DOCKERDIR/flaresolverr.yml
+  - /home/rfaulkner/docker/compose/$HOSTNAME/prowlarr.yml
+  - /home/rfaulkner/docker/compose/$HOSTNAME/flaresolverr.yml
   # PVRs
-  - $DOCKERDIR/radarr.yml
-  - $DOCKERDIR/sonarr.yml
+  - /home/rfaulkner/docker/compose/$HOSTNAME/radarr.yml
+  - /home/rfaulkner/docker/compose/$HOSTNAME/sonarr.yml
   # COMPLEMENTARY APPS
-  - $DOCKERDIR/bazarr.yml
-  - $DOCKERDIR/tautulli.yml
-  - $DOCKERDIR/overseer.yml
+  - /home/rfaulkner/docker/compose/$HOSTNAME/bazarr.yml
+  - /home/rfaulkner/docker/compose/$HOSTNAME/tautulli.yml
+  - /home/rfaulkner/docker/compose/$HOSTNAME/overseer.yml
   # MONITORING
-  - $DOCKERDIR/uptime-kuma.yml
+  - /home/rfaulkner/docker/compose/$HOSTNAME/uptime-kuma.yml
   # DATABASES
-  #  - $DOCKERDIR/mariadb.yml
+  #  - /home/rfaulkner/docker/compose/$HOSTNAME/mariadb.yml
   # MAINTENANCE
-  - $DOCKERDIR/docker-gc.yml
-  - $DOCKERDIR/duplicati.yml
+  - /home/rfaulkner/docker/compose/$HOSTNAME/docker-gc.yml
+  - /home/rfaulkner/docker/compose/$HOSTNAME/duplicati.yml
