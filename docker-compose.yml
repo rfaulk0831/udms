@@ -17,33 +17,397 @@ include:
 
 ########################### SERVICES
   # PREFIX udms = Ultimate Docker Media Server
-  # HOSTNAME=docker1 - defined in .env
-
-  # CORE
-  - /home/rfaulkner/docker/socket-proxy.yml
-  - /home/rfaulkner/docker/portainer.yml
-  # - /home/rfaulkner/docker/cpx.yml
-  - /home/rfaulkner/docker/dozzle.yml
-  - /home/rfaulkner/docker/homepage.yml
-  # MEDIA
-  - /home/rfaulkner/docker/plex.yml
-  # DOWNLOADERS
-  - /home/rfaulkner/docker/qbittorrent.yml
-  - /home/rfaulkner/docker/transmission.yml
-  # INDEXERS
-  - /home/rfaulkner/docker/prowlarr.yml
-  - /home/rfaulkner/docker/flaresolverr.yml
-  # PVRs
-  - /home/rfaulkner/docker/radarr.yml
-  - /home/rfaulkner/docker/sonarr.yml
-  # COMPLEMENTARY APPS
-  - /home/rfaulkner/docker/bazarr.yml
-  - /home/rfaulkner/docker/tautulli.yml
-  - /home/rfaulkner/docker/overseer.yml
-  # MONITORING
-  - /home/rfaulkner/docker/uptime-kuma.yml
-  # DATABASES
-  #  - /home/rfaulkner/docker/mariadb.yml
-  # MAINTENANCE
-  - /home/rfaulkner/docker/docker-gc.yml
-  - /home/rfaulkner/docker/duplicati.yml
+services:
+  # Bazarr - Subtitle Management  
+  bazarr:
+    image: lscr.io/linuxserver/bazarr
+    container_name: bazarr
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
+    # profiles: ["media", "arrs", "all"]
+    networks:
+      - default
+    ports:
+      - "6767:6767"
+    volumes:
+      - $DOCKERDIR/appdata/bazarr:/config
+      - /mnt/data/media:/data/media
+    environment:
+      TZ: $TZ
+      PUID: $PUID
+      PGID: $PGID
+  # Docker-GC - Automatic Docker Garbage Collection
+  # Create docker-gc-exclude file
+  docker-gc:
+    image: clockworksoul/docker-gc-cron:latest
+    container_name: docker-gc
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    # profiles: ["apps", "all"]
+    networks:
+      - socket_proxy
+    volumes:
+      # - /var/run/docker.sock:/var/run/docker.sock # Use Docker Socket Proxy instead for improved security
+      - $DOCKERDIR/appdata/docker-gc/docker-gc-exclude:/etc/docker-gc-exclude
+    environment:
+      CRON: 0 0 0 * * ? # Every day at midnight
+      FORCE_IMAGE_REMOVAL: 1
+      FORCE_CONTAINER_REMOVAL: 0
+      GRACE_PERIOD_SECONDS: 604800
+      DRY_RUN: 0
+      CLEAN_UP_VOLUMES: 1
+      TZ: $TZ
+      DOCKER_HOST: tcp://socket-proxy:2375
+  # Dozzle - Real-time Docker Log Viewer
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: dozzle
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    # profiles: ["apps", "all"]
+    networks:
+      - socket_proxy
+      - default
+    ports:
+      - "8082:8080"
+    environment:
+      DOZZLE_LEVEL: info
+      DOZZLE_TAILSIZE: 300
+      DOZZLE_FILTER: "status=running"
+      # DOZZLE_FILTER: "label=log_me" # limits logs displayed to containers with this label
+      DOCKER_HOST: tcp://socket-proxy:2375
+    # volumes:
+    #  - /var/run/docker.sock:/var/run/docker.sock # Use Docker Socket Proxy instead for improved security
+  duplicati:
+    image: ghcr.io/linuxserver/duplicati
+    container_name: duplicati
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      # (optional) - CLI_ARGS=
+    volumes:
+      - /$DOCKERDIR/appdata/duplicati:/config
+      - /mnt/data/backups:/backups
+      - /home/rfaulkner:/source
+    ports:
+      - 8200:8200
+    restart: unless-stopped
+  flaresolverr:
+    # DockerHub mirror flaresolverr/flaresolverr:latest
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    environment:
+       - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOGHTML=${LOG_HTML:-false}
+      - CAPTCHA_SOLVER=${CAPTCHA_SOLVER:-none}     PUID: $PUID
+      GID: $PGID
+      TZ: $TZ
+    volumes:
+      - $DOCKERDIR/appdata/flaresolverr/data:/confin
+    ports:
+      - "8191:8191"
+    restart: unless-stopped
+  gluetun:
+    image: qmcgaw/gluetun
+    container_name: gluetun
+    # line above must be uncommented to allow external containers to connect.
+    # See https://github.com/qdm12/gluetun-wiki/blob/main/setup/connect-a-container-to-gluetun.md#external-container-to-gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    ports:
+      - 6881:6881
+      - 6881:6881/udp
+      - 8080:8080 # qbittorrent
+      - 9117:9117 # Jackett
+      - 8989:8989 # Sonarr
+      - 9696:9696 # Prowlarr
+    volumes:
+       - $DOCKERDIR/appdata/gluetun:/gluetun
+    environment:
+      # See https://github.com/qdm12/gluetun-wiki/tree/main/setup#setup
+      - VPN_SERVICE_PROVIDER=nordvpn
+      - VPN_TYPE=wireguard
+      # OpenVPN:
+      # - OPENVPN_USER=
+      # - OPENVPN_PASSWORD=
+      # Wireguard:
+      - WIREGUARD_PRIVATE_KEY=<YOUR_PRIVATE_KEY> # See https://github.com/qdm12/gluetun-wiki/blob/main/setup/providers/nordvpn.md#obtain-your-wireguard-private-key
+      - WIREGUARD_ADDRESSES=10.5.0.2/32
+      # Timezone for accurate log times
+      - TZ=Europe/London
+      # Server list updater
+      # See https://github.com/qdm12/gluetun-wiki/blob/main/setup/servers.md#update-the-vpn-servers-list
+      - UPDATER_PERIOD=24h
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    # profiles: ["apps", "all"]
+    networks:
+      - socket_proxy
+      - default
+    ports:
+      - "3000:3000"
+    volumes:
+      - $DOCKERDIR/appdata/homepage:/app/config
+    environment:
+      TZ: $TZ
+      PUID: $PUID
+      PGID: $PGID
+  jackett:
+    image: lscr.io/linuxserver/jackett:latest
+    container_name: jackett
+    environment:
+      TZ: $TZ
+      PUID: $PUID
+      PGID: $PGID
+    volumes:
+      - /$DOCKERDIR/appdata/jackett:/config
+      - /mnt/data/torrents:/downloads
+    ports:
+      - 9117:9117
+    restart: unless-stopped
+  overseerr:
+    image: sctx/overseerr:latest
+    container_name: overseerr
+    environment:
+      - LOG_LEVEL=debug
+    volumes:
+     - $dockerdir/appdata/overseerr:/config
+    ports:
+      - 5055:5055
+    restart: unless-stopped
+  plex:
+    image: plexinc/pms-docker:plexpass
+    container_name: plex
+    networks:
+      - default
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
+    # profiles: ["media", "all"]
+    devices:
+      - /dev/dri:/dev/dri # for hardware transcoding
+    ports:
+      - "32400:32400/tcp"
+      - "3005:3005/tcp"
+      - "8324:8324/tcp"
+      - "32469:32469/tcp"
+      - "1900:1900/udp"
+      - "32410:32410/udp"
+      - "32412:32412/udp"
+      - "32413:32413/udp"
+      - "32414:32414/udp"
+    volumes:
+      - $DOCKERDIR/appdata/plex:/config
+      - /mnt/data/media:/data/media # Media Folder 1
+    #  - $DATADIR/data2/media:/data/media2 # Media Folder 2
+      - /dev/shm:/data/transcode # Offload transcoding to RAM if you have enough RAM
+    environment:
+      TZ: $TZ
+      HOSTNAME: "RFPlex"
+      PLEX_CLAIM_FILE: /run/secrets/plex_claim # Not required initially
+      PLEX_UID: $PUID
+      PLEX_GID: $PGID
+      ADVERTISE_IP: "http://$SERVER_IP:32400/"
+      ALLOWED_NETWORKS: $LOCAL_IPS
+    secrets:
+      - plex_claim
+  portainer:
+    container_name: portainer
+    image: portainer/portainer-ce:latest # Use portainer-ee if you have a Business Edition license key
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    # profiles: ["core", "all"]
+    networks:
+      - socket_proxy
+    # command: -H unix:///var/run/docker.sock # # Use Docker Socket Proxy instead for improved security
+    command: -H tcp://socket-proxy:2375
+    ports:
+      - "9000:9000"
+    volumes:
+      # - /var/run/docker.sock:/var/run/docker.sock:ro # # Use Docker Socket Proxy instead for improved security
+      - $DOCKERDIR/appdata/portainer/data:/data # Change to local directory if you want to save/transfer config locally
+    environment:
+      - TZ=$TZ
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    environment:
+      PUID: $PUID
+      PGID: $PGID
+      TZ: $TZ
+    volumes:
+      - $DOCKERDIR/appdata/prowlarr/data:/config
+    ports:
+      - 9696:9696
+    restart: unless-stopped
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    # profiles: ["apps", "downloads", "all"]
+    networks:
+      - default
+    ports:
+      - "8080:8080"
+    volumes:
+      - $DOCKERDIR/appdata/qbittorrent:/config
+      - /mnt/data/torrents:/data/torrents # Ensure that downloads folder is set to /data/torrents in qBittorrent
+    environment:
+      TZ: $TZ
+      PUID: $PUID
+      PGID: $PGID
+      UMASK_SET: 002
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest 
+    container_name: radarr
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
+    # profiles: ["media", "arrs", "all"]
+    networks:
+      - default
+    ports:
+      - "7878:7878"
+    volumes:
+      - $DOCKERDIR/appdata/radarr:/config
+      - /mnt/data:/data
+      - "/etc/localtime:/etc/localtime:ro"
+    environment:
+      TZ: $TZ
+      PUID: $PUID
+      PGID: $PGID
+  socket-proxy:
+    container_name: socket-proxy
+    image: tecnativa/docker-socket-proxy
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    # profiles: ["core", "all"]
+    networks:
+      socket_proxy:
+        ipv4_address: 172.16.91.254 # You can specify a static IP
+    privileged: true # true for VM. False for unprivileged LXC container.
+    ports:
+    #  - "$ZEROTIER_IP_CLOUDSERVER:2375:2375" # Port 2375 should only ever get exposed to the internal network. When possible use this line.
+    # I use the next line instead, as I want portainer to manage multiple docker endpoints within my home network.
+      - "2375:2375" # Do not expose this to the internet with port forwarding
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    environment:
+      - LOG_LEVEL=info # debug,info,notice,warning,err,crit,alert,emerg
+      ## Variables match the URL prefix (i.e. AUTH blocks access to /auth/* parts of the API, etc.).
+      # 0 to revoke access.
+      # 1 to grant access.
+      ## Granted by Default
+      - EVENTS=1
+      - PING=1
+      - VERSION=1
+      ## Revoked by Default
+      # Security critical
+      - AUTH=0
+      - SECRETS=0
+      - POST=1 # Watchtower
+      # Not always needed
+      - BUILD=0
+      - COMMIT=0
+      - CONFIGS=0
+      - CONTAINERS=1 # Traefik, portainer, etc.
+      - DISTRIBUTION=0
+      - EXEC=0
+      - IMAGES=1 # Portainer
+      - INFO=1 # Portainer
+      - NETWORKS=1 # Portainer
+      - NODES=0
+      - PLUGINS=0
+      - SERVICES=1 # Portainer
+      - SESSION=0
+      - SWARM=0
+      - SYSTEM=0
+      - TASKS=1 # Portainer
+      - VOLUMES=1 # Portainer
+  # Sonarr - TV Shows Management
+  # Set url_base in sonarr settings if using PathPrefix
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:develop
+    container_name: sonarr
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
+    # profiles: ["media", "arrs", "all"]
+    networks:
+      - default
+    ports:
+      - "8989:8989"
+    volumes:
+      - $DOCKERDIR/appdata/sonar:/config
+      - /mnt/data:/data
+      - "/etc/localtime:/etc/localtime:ro"
+    environment:
+      TZ: $TZ
+      PUID: $PUID
+      PGID: $PGID
+  tautulli:
+    image: lscr.io/linuxserver/tautulli:latest
+    container_name: tautulli
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
+    # profiles: ["media", "all"]
+    networks:
+      - default
+    ports:
+      - "8181:8181"
+    volumes:
+      - $DOCKERDIR/appdata/tautulli/config:/config
+      - $DOCKERDIR/appdata/plex/Library/Application Support/Plex Media Server/Logs:/logs:ro # For Tautulli Plex log viewer
+    environment:
+      TZ: $TZ
+      PUID: $PUID
+      PGID: $PGID
+  transmission-openvpn:
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - /home/stelios/media/:/data
+      - /home/stelios/transmission/config/:/config
+    environment:
+      - OPENVPN_PROVIDER=NORDVPN
+      - OPENVPN_CONFIG=Greece
+      - OPENVPN_USERNAME=randomGeneratedStringFromNordAccount
+      - OPENVPN_PASSWORD=randomGeneratedStringFromNordAccount
+      - LOCAL_NETWORK=192.168.1.0/24
+      - NORDVPN_COUNTRY=GR
+      - NORDVPN_CATEGORY=legacy_p2p
+      - NORDVPN_PROTOCOL=tcp
+    logging:
+      driver: json-file
+      options:
+      max-size: 10m
+      ports:
+      - 9091:9091
+      image: haugene/transmission-openvpn
+      restart: unless-stopped
+  uptime-kuma:
+    image: louislam/uptime-kuma
+    container_name: uptime-kuma
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    # profiles: ["core", "all"]
+    networks:
+      - default
+    volumes:
+      - $DOCKERDIR/appdata/uptime-kuma:/app/data
