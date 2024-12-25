@@ -42,6 +42,7 @@ include:
   - /home/rfaulkner/docker/overseer.yml
   # MONITORING
   - /home/rfaulkner/docker/uptime-kuma.yml
+  - /home/rfaulkner/docker/watchtower.yml
   # DATABASES
   #  - /home/rfaulkner/docker/mariadb.yml
   # MAINTENANCE
