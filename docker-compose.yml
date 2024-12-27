@@ -29,6 +29,7 @@ include:
   - /home/rfaulkner/docker/plex.yml
   # DOWNLOADERS
   - /home/rfaulkner/docker/qbittorrent.yml
+  - /home/rfaulkner/docker/deluge.yml
   - /home/rfaulkner/docker/transmission.yml
   # INDEXERS
   - /home/rfaulkner/docker/prowlarr.yml

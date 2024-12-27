@@ -1,0 +1,22 @@
+services:
+  deluge:
+    image: lscr.io/linuxserver/deluge:latest
+    container_name: deluge
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    networks:
+      - default
+    ports:
+      - 8112:8112
+      - 6881:6881
+      - 6881:6881/udp
+      - 58846:58846 #optional
+    volumes:
+      - $DOCKERDIR/appdata/deluge:/config
+      - /mnt/data/torrents:/downloads
+    environment:
+      TZ: $TZ
+      PUID: $PUID
+      PGID: $PGID
+      DELUGE_LOGLEVEL: error
