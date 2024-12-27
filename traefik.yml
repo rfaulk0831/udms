@@ -1,0 +1,16 @@
+version: '3.4'
+services:
+  traefik:
+    image: traefik:2.1
+    container_name: traefik
+    environment:
+      PUID: $PUID
+      PGID: $PGID
+      TZ: $TZ
+    restart: always
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+    - $dockerdir/appdata/traefik:/etc/traefik
+    - /var/run/docker.sock:/var/run/docker.sock:ro
